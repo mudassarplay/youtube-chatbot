@@ -26,17 +26,34 @@ if "vectorstore" not in st.session_state:
 if "video_title" not in st.session_state:
     st.session_state.video_title = ""
 
+if "chat_history" not in st.session_state:                 # NEW: list to store (question, answer) pairs
+    st.session_state.chat_history = []
+
 if st.button("Load Video"):
     video_id = extract_video_id(video_url)
     with st.spinner("Fetching transcript and building knowledge base..."):
         transcript_text = get_transcript(video_id)
         st.session_state.vectorstore = create_vectorstore(transcript_text)
         st.session_state.video_title = get_video_title(video_id)
+        st.session_state.chat_history = []                    # NEW: reset chat when a new video loads
     st.success(f"Loaded: {st.session_state.video_title}")
 
 if st.session_state.vectorstore:
-    question = st.text_input("Ask a question about the video")
+    for question, answer in st.session_state.chat_history:     # NEW: redraw all previous messages
+        with st.chat_message("user"):
+            st.write(question)
+        with st.chat_message("assistant"):
+            st.write(answer)
+
+    question = st.chat_input("Ask a question about the video")  # NEW: chat-style input box
+
     if question:
-        with st.spinner("Thinking..."):
-            answer = get_answer(st.session_state.vectorstore, question, st.session_state.video_title)
-        st.write("**Answer:**", answer)
+        with st.chat_message("user"):
+            st.write(question)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                answer = get_answer(st.session_state.vectorstore, question, st.session_state.video_title)
+            st.write(answer)
+
+        st.session_state.chat_history.append((question, answer))   # NEW: save this exchange
