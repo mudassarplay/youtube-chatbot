@@ -1,5 +1,5 @@
 import streamlit as st
-from src.transcript import get_transcript
+from src.transcript import get_transcript, get_video_title
 from src.vectorstore import create_vectorstore
 from src.chatbot import get_answer
 
@@ -23,16 +23,20 @@ video_url = st.text_input("YouTube Video URL")
 if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 
+if "video_title" not in st.session_state:
+    st.session_state.video_title = ""
+
 if st.button("Load Video"):
-    video_id = extract_video_id(video_url)                    # call the function here to get the ID
+    video_id = extract_video_id(video_url)
     with st.spinner("Fetching transcript and building knowledge base..."):
         transcript_text = get_transcript(video_id)
         st.session_state.vectorstore = create_vectorstore(transcript_text)
-    st.success("Video loaded! You can ask questions now.")
+        st.session_state.video_title = get_video_title(video_id)
+    st.success(f"Loaded: {st.session_state.video_title}")
 
 if st.session_state.vectorstore:
     question = st.text_input("Ask a question about the video")
     if question:
         with st.spinner("Thinking..."):
-            answer = get_answer(st.session_state.vectorstore, question)
+            answer = get_answer(st.session_state.vectorstore, question, st.session_state.video_title)
         st.write("**Answer:**", answer)

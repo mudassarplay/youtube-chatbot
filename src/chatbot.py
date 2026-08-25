@@ -1,24 +1,26 @@
-from langchain_ollama import ChatOllama              # your local model wrapper
+from langchain_ollama import ChatOllama
 
-def get_answer(vectorstore, question: str) -> str:
-    """Takes a vectorstore and a question, retrieves relevant chunks, and asks the LLM to answer using them."""
+def get_answer(vectorstore, question: str, video_title: str = "") -> str:      # added video_title parameter
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    relevant_docs = retriever.invoke(question)
 
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})   # get top 3 relevant chunks
-    relevant_docs = retriever.invoke(question)                      # actually fetch them
+    context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    context = "\n\n".join([doc.page_content for doc in relevant_docs])   # combine all chunks into one context block
+    llm = ChatOllama(model="qwen2.5:3b-instruct", temperature=0.3)
 
-    llm = ChatOllama(model="qwen2.5:3b-instruct")                   # your local model
+    prompt = f"""You are a helpful assistant answering questions about a YouTube video, based on its title and transcript.
 
-    prompt = f"""Answer the question based only on the following context from a video transcript.
-If the answer isn't in the context, say you don't know.
+Video Title: {video_title}
 
-Context:
+Answer clearly and in a complete, natural sentence.
+If the answer isn't in the title or context, say so politely and briefly explain what you do know instead.
+
+Context from the video transcript:
 {context}
 
 Question: {question}
 
-Answer:"""
+Answer in a friendly, conversational tone:"""
 
-    response = llm.invoke(prompt)          # send the prompt to the LLM
-    return response.content                 # return just the text answer
+    response = llm.invoke(prompt)
+    return response.content
