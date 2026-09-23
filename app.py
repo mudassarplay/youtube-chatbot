@@ -1,59 +1,70 @@
 import streamlit as st
-from src.transcript import get_transcript, get_video_title
-from src.vectorstore import create_vectorstore
-from src.chatbot import get_answer
+import requests
 
-
-def extract_video_id(url: str) -> str:
-    """Extracts the YouTube video ID from either youtube.com or youtu.be style URLs."""
-    if "youtu.be/" in url:
-        video_id = url.split("youtu.be/")[-1].split("?")[0]
-    elif "v=" in url:
-        video_id = url.split("v=")[-1].split("&")[0]
-    else:
-        video_id = url
-    return video_id
-
+API_URL = "http://127.0.0.1:8000"
 
 st.title("🎥 YouTube Chatbot")
-st.write("Paste a YouTube video link and ask questions about it.")
 
-video_url = st.text_input("YouTube Video URL")
-
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = None
-
+if "video_loaded" not in st.session_state:
+    st.session_state.video_loaded = False
 if "video_title" not in st.session_state:
     st.session_state.video_title = ""
-
-if "chat_history" not in st.session_state:                 # NEW: list to store (question, answer) pairs
+if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-if st.button("Load Video"):
-    video_id = extract_video_id(video_url)
-    with st.spinner("Fetching transcript and building knowledge base..."):
-        transcript_text = get_transcript(video_id)
-        st.session_state.vectorstore = create_vectorstore(transcript_text)
-        st.session_state.video_title = get_video_title(video_id)
-        st.session_state.chat_history = []                    # NEW: reset chat when a new video loads
-    st.success(f"Loaded: {st.session_state.video_title}")
 
-if st.session_state.vectorstore:
-    for question, answer in st.session_state.chat_history:     # NEW: redraw all previous messages
+def load_chat_for_video(title):
+    """Fetches saved history for a given video title and loads it into the current session."""
+    history_response = requests.get(f"{API_URL}/history")
+    all_history = history_response.json()
+    video_history = [h for h in all_history if h["video_title"] == title]
+    st.session_state.chat_history = [(h["question"], h["answer"]) for h in video_history]
+    st.session_state.video_title = title
+    st.session_state.video_loaded = True
+
+
+# --- SIDEBAR: past conversations ---
+with st.sidebar:
+    st.header("💬 Past Conversations")
+    history_response = requests.get(f"{API_URL}/history")
+    all_history = history_response.json()
+    past_titles = sorted(set(h["video_title"] for h in all_history))   # unique video titles
+
+    for title in past_titles:
+        if st.button(title, key=f"sidebar_{title}"):
+            load_chat_for_video(title)
+
+    st.divider()
+    st.header("➕ New Video")
+    video_url = st.text_input("YouTube Video URL")
+    if st.button("Load Video"):
+        with st.spinner("Fetching transcript and building knowledge base..."):
+            response = requests.post(f"{API_URL}/load-video", json={"url": video_url})
+            data = response.json()
+            load_chat_for_video(data["title"])
+        st.success(f"Loaded: {st.session_state.video_title}")
+
+
+# --- MAIN AREA: active chat ---
+if st.session_state.video_loaded:
+    st.subheader(st.session_state.video_title)
+
+    for question, answer in st.session_state.chat_history:
         with st.chat_message("user"):
             st.write(question)
         with st.chat_message("assistant"):
             st.write(answer)
 
-    question = st.chat_input("Ask a question about the video")  # NEW: chat-style input box
+    question = st.chat_input("Ask a question about the video")
 
     if question:
         with st.chat_message("user"):
             st.write(question)
-
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                answer = get_answer(st.session_state.vectorstore, question, st.session_state.video_title)
+                response = requests.post(f"{API_URL}/ask", json={"question": question})
+                answer = response.json()["answer"]
             st.write(answer)
-
-        st.session_state.chat_history.append((question, answer))   # NEW: save this exchange
+        st.session_state.chat_history.append((question, answer))
+else:
+    st.write("👈 Load a video from the sidebar to get started.")
