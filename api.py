@@ -4,6 +4,7 @@ from src.transcript import get_transcript, get_video_title
 from src.vectorstore import create_vectorstore
 from src.chatbot import get_answer
 from fastapi.middleware.cors import CORSMiddleware   # NEW: import CORS support
+from src.database import SessionLocal, ChatHistory     # NEW: our database session + table
 
 app = FastAPI()                                             # create the FastAPI application
 # NEW: allow requests from any origin (fine for local development)
@@ -47,10 +48,30 @@ def load_video(request: LoadVideoRequest):
     transcript_text = get_transcript(video_id)
     session["vectorstore"] = create_vectorstore(transcript_text)
     session["video_title"] = get_video_title(video_id)
+    session["video_id"] = video_id                            # NEW: store this too
     return {"title": session["video_title"]}
-
 
 @app.post("/ask")
 def ask(request: AskRequest):
     answer = get_answer(session["vectorstore"], request.question, session["video_title"])
+
+    # NEW: save this Q&A to the database
+    db = SessionLocal()                                    # open a database session
+    new_entry = ChatHistory(                                 # create a new row (object)
+        video_id=session.get("video_id", ""),
+        video_title=session["video_title"],
+        question=request.question,
+        answer=answer
+    )
+    db.add(new_entry)                                         # stage it for saving
+    db.commit()                                                # actually save it to the file
+    db.close()                                                 # close the session
+
     return {"answer": answer}
+
+@app.get("/history")
+def get_history():
+    db = SessionLocal()
+    all_history = db.query(ChatHistory).all()      # get every row from the chat_history table
+    db.close()
+    return all_history
