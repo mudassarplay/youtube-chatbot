@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube Chatbot</title>
+    <link rel="stylesheet" href="style.css">    <!-- links our CSS file -->
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>💬 Past Conversations</h2>
+        <div id="video-list"></div>              <!-- JS will fill this in dynamically -->
+
+        <hr>
+
+        <h2>➕ New Video</h2>
+        <input type="text" id="video-url" placeholder="YouTube Video URL">
+        <button type="button" id="load-video-btn">Load Video</button>
+    </div>
+
+    <div class="main">
+    <div class="chat-header">
+        <h3 id="current-video-title"></h3>
+        <button type="button" id="close-chat-btn" style="display:none;">✕ Close</button>
+    </div>
+
+    <div id="welcome-screen">
+        <h1>YouTube Chatbot</h1>
+        <p>Paste a YouTube link below to start chatting about a video.</p>
+        <div class="welcome-input-area">
+            <input type="text" id="welcome-video-url" placeholder="Paste a YouTube video URL">
+            <button type="button" id="welcome-load-btn">Load Video</button>
+        </div>
+    </div>
+
+    <div id="chat-messages"></div>
+
+    <div class="chat-input-area" id="chat-input-area" style="display:none;">
+        <input type="text" id="question-input" placeholder="Ask a question about the video">
+        <button type="button" id="ask-btn">Send</button>
+    </div>
+    </div>
+
+    <script src="script.js"></script>              <!-- links our JS file, loaded last -->
+</body>
+</html>
