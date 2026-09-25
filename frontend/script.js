@@ -20,7 +20,7 @@ function showWelcomeView() {
 
 document.getElementById("close-chat-btn").addEventListener("click", showWelcomeView);
 
-// --- Shared function to load a video (used by both sidebar and welcome screen) ---
+// --- Shared function to load a video (used by sidebar, welcome screen, and past conversations) ---
 async function loadVideo(url) {
     const response = await fetch(`${API_URL}/load-video`, {
         method: "POST",
@@ -109,18 +109,17 @@ async function loadSidebarHistory() {
 }
 
 // --- Load a specific past conversation when clicked in sidebar ---
-function loadPastConversation(title, allHistory) {
-    currentVideoTitle = title;
-    document.getElementById("current-video-title").innerText = title;
-    document.getElementById("chat-messages").innerHTML = "";
-
+async function loadPastConversation(title, allHistory) {
     const videoMessages = allHistory.filter(h => h.video_title === title);
+    const videoId = videoMessages[0].video_id;                          // get the video's ID from saved history
+    const url = `https://www.youtube.com/watch?v=${videoId}`;           // reconstruct a valid URL from it
+
+    await loadVideo(url);                                                 // actually rebuild the vectorstore on the backend
+
     videoMessages.forEach(h => {
         addMessage("user", h.question);
         addMessage("assistant", h.answer);
     });
-
-    showChatView();
 }
 
 // --- On page load, show sidebar history right away ---

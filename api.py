@@ -5,17 +5,16 @@ from src.vectorstore import create_vectorstore
 from src.chatbot import get_answer
 from fastapi.middleware.cors import CORSMiddleware   # NEW: import CORS support
 from src.database import SessionLocal, ChatHistory     # NEW: our database session + table
-
+from fastapi import HTTPException
 app = FastAPI()                                             # create the FastAPI application
 # NEW: allow requests from any origin (fine for local development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # "*" means allow any website/address to call this API
-    allow_credentials=True,
-    allow_methods=["*"],          # allow all request types (GET, POST, etc.)
+    allow_origins=["*"],
+    allow_credentials=False,      # changed from True — not needed, and conflicts with wildcard origin
+    allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # In-memory storage for the current session (simple, single-user, good enough for learning)
 session = {
     "vectorstore": None,
@@ -45,10 +44,14 @@ class AskRequest(BaseModel):                                # defines what data 
 @app.post("/load-video")
 def load_video(request: LoadVideoRequest):
     video_id = extract_video_id(request.url)
-    transcript_text = get_transcript(video_id)
+    try:
+        transcript_text = get_transcript(video_id)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Could not fetch transcript: {str(e)}")
+
     session["vectorstore"] = create_vectorstore(transcript_text)
     session["video_title"] = get_video_title(video_id)
-    session["video_id"] = video_id                            # NEW: store this too
+    session["video_id"] = video_id
     return {"title": session["video_title"]}
 
 @app.post("/ask")

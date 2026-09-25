@@ -1,4 +1,8 @@
-from langchain_ollama import ChatOllama
+import os
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+load_dotenv()   # reads .env file and loads GOOGLE_API_KEY into the environment
 
 def get_answer(vectorstore, question: str, video_title: str = "") -> str:
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
@@ -6,7 +10,7 @@ def get_answer(vectorstore, question: str, video_title: str = "") -> str:
 
     context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    llm = ChatOllama(model="qwen2.5:3b-instruct", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)   # swapped from ChatOllama
 
     prompt = f"""You are a friendly assistant helping a user explore a YouTube video titled "{video_title}".
 
